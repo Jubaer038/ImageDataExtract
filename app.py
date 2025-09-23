@@ -14,19 +14,19 @@ tesseract_path = shutil.which("tesseract")
 if tesseract_path:
     pytesseract.pytesseract.tesseract_cmd = tesseract_path
 else:
-    # 🔧 If running on Windows, update path below after installing Tesseract
+    # If running on Windows, update path below after installing Tesseract
     win_path = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
     if os.path.exists(win_path):
         pytesseract.pytesseract.tesseract_cmd = win_path
     else:
-        st.error("❌ Tesseract OCR not found! Please install it.")
+        st.error("Tesseract OCR not found! Please install it.")
         st.stop()
 
 # -------------------------------
 # Streamlit Page Settings
 # -------------------------------
 st.set_page_config(page_title="Image Data Extract & Compare", layout="wide")
-st.title("📷 Image Data Extract & Compare")
+st.title("Image Data Extract & Compare")
 st.write("Upload an image, extract temperature text, and compare with OpenWeather API.")
 
 # -------------------------------
@@ -47,7 +47,7 @@ if uploaded_file is not None:
     gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)  # Convert RGB → Gray
     extracted_text = pytesseract.image_to_string(gray)
 
-    st.subheader("📝 Extracted Text")
+    st.subheader("Extracted Text")
     st.text(extracted_text)
 
     # Detect first integer (temperature-like value)
@@ -60,9 +60,9 @@ if uploaded_file is not None:
             continue
 
     if extracted_temp is not None:
-        st.success(f"✅ Extracted Temperature: {extracted_temp}°C")
+        st.success(f"Extracted Temperature: {extracted_temp}°C")
     else:
-        st.warning("⚠️ No temperature value detected.")
+        st.warning("No temperature value detected.")
 
     # -------------------------------
     # Step 3: OpenWeather API
@@ -70,7 +70,7 @@ if uploaded_file is not None:
     city = st.text_input("Enter city name for weather check", "Dhaka")
 
     if st.button("Compare with API"):
-        # ✅ Hard-coded API key
+        #Hard-coded API key
         api_key = "22f9ea86b3c7d79c4a1df5b7a06da497"
 
         url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}&units=metric"
@@ -85,10 +85,10 @@ if uploaded_file is not None:
 
                 if extracted_temp is not None:
                     if extracted_temp == api_temp:
-                        st.success("✅ Match! Extracted temperature matches API data.")
+                        st.success("Match! Extracted temperature matches API data.")
                     else:
-                        st.error("❌ Not Match! Extracted temperature does not match API data.")
+                        st.error("Not Match! Extracted temperature does not match API data.")
             else:
-                st.error("⚠️ City not found or API error.")
+                st.error("City not found or API error.")
         except Exception as e:
             st.error(f"API request failed: {e}")
