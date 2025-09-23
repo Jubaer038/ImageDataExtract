@@ -27,7 +27,7 @@ if uploaded_file is not None:
     # -------------------------------
     # Step 2: OCR Extraction
     # -------------------------------
-    gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)  # FIXED: RGB -> GRAY
+    gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)  # Convert RGB → Gray
     extracted_text = pytesseract.image_to_string(gray)
 
     st.subheader("📝 Extracted Text")
@@ -53,12 +53,8 @@ if uploaded_file is not None:
     city = st.text_input("Enter city name for weather check", "Dhaka")
 
     if st.button("Compare with API"):
-        # ⚠️ Use your OpenWeather API key in Streamlit Secrets → OPENWEATHER_KEY
-        try:
-            api_key = st.secrets["OPENWEATHER_KEY"]
-        except:
-            st.error("❌ Please add your OpenWeather API key in Streamlit Secrets (OPENWEATHER_KEY).")
-            st.stop()
+        # ✅ Hard-coded API key
+        api_key = "22f9ea86b3c7d79c4a1df5b7a06da497"
 
         url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}&units=metric"
 
