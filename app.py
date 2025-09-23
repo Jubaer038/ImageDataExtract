@@ -4,6 +4,23 @@ import pytesseract
 from PIL import Image
 import requests
 import numpy as np
+import shutil
+import os
+
+# -------------------------------
+# Configure Tesseract Path
+# -------------------------------
+tesseract_path = shutil.which("tesseract")
+if tesseract_path:
+    pytesseract.pytesseract.tesseract_cmd = tesseract_path
+else:
+    # 🔧 If running on Windows, update path below after installing Tesseract
+    win_path = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+    if os.path.exists(win_path):
+        pytesseract.pytesseract.tesseract_cmd = win_path
+    else:
+        st.error("❌ Tesseract OCR not found! Please install it.")
+        st.stop()
 
 # -------------------------------
 # Streamlit Page Settings
