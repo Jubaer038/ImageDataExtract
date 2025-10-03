@@ -6,6 +6,7 @@ import requests
 import numpy as np
 import shutil
 import os
+import re
 
 # -------------------------------
 # Configure Tesseract Path
@@ -14,7 +15,6 @@ tesseract_path = shutil.which("tesseract")
 if tesseract_path:
     pytesseract.pytesseract.tesseract_cmd = tesseract_path
 else:
-    # If running on Windows, update path below after installing Tesseract
     win_path = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
     if os.path.exists(win_path):
         pytesseract.pytesseract.tesseract_cmd = win_path
@@ -23,56 +23,94 @@ else:
         st.stop()
 
 # -------------------------------
-# Streamlit Page Settings
+# Page Settings
 # -------------------------------
 st.set_page_config(page_title="Image Data Extract & Compare", layout="wide")
-st.title("Image Data Extract & Compare")
-st.write("Upload an image, extract temperature text, and compare with OpenWeather API.")
+st.title("📷 Image Data Extract & Compare")
+st.write("Upload an image OR take a photo, extract temperature text, and compare with OpenWeather API.")
 
 # -------------------------------
-# Step 1: File Upload
+# Initialize session state
 # -------------------------------
-uploaded_file = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"])
+if "image_file" not in st.session_state:
+    st.session_state.image_file = None
+if "extracted_temp" not in st.session_state:
+    st.session_state.extracted_temp = None
+if "extracted_text" not in st.session_state:
+    st.session_state.extracted_text = ""
+if "current_source" not in st.session_state:
+    st.session_state.current_source = None
+if "open_camera" not in st.session_state:
+    st.session_state.open_camera = False
 
-if uploaded_file is not None:
-    # Convert uploaded image to OpenCV format
-    image = Image.open(uploaded_file).convert("RGB")  # Ensure RGB
-    img_array = np.array(image)
+# -------------------------------
+# Tabs: Upload / Camera
+# -------------------------------
+tab1, tab2 = st.tabs(["📤 Upload Image", "📸 Take Photo"])
 
-    st.image(image, caption="Uploaded Image", use_column_width=True)
+# --- Upload Tab ---
+with tab1:
+    uploaded_file = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png"])
+    if uploaded_file is not None:
+        # Reset state if new image
+        if st.session_state.current_source != "upload" or st.session_state.image_file != uploaded_file:
+            st.session_state.image_file = uploaded_file
+            st.session_state.extracted_temp = None
+            st.session_state.extracted_text = ""
+            st.session_state.current_source = "upload"
 
-    # -------------------------------
-    # Step 2: OCR Extraction
-    # -------------------------------
-    gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)  # Convert RGB → Gray
-    extracted_text = pytesseract.image_to_string(gray)
-
-    st.subheader("Extracted Text")
-    st.text(extracted_text)
-
-    # Detect first integer (temperature-like value)
-    extracted_temp = None
-    for word in extracted_text.split():
-        try:
-            extracted_temp = int(word)
-            break
-        except:
-            continue
-
-    if extracted_temp is not None:
-        st.success(f"Extracted Temperature: {extracted_temp}°C")
+# --- Camera Tab ---
+with tab2:
+    if not st.session_state.open_camera:
+        if st.button("📸 Open Camera"):
+            st.session_state.open_camera = True
     else:
-        st.warning("No temperature value detected.")
+        st.info("Take a photo below 👇")
+        camera_file = st.camera_input("Take a photo")
 
-    # -------------------------------
-    # Step 3: OpenWeather API
-    # -------------------------------
-    city = st.text_input("Enter city name for weather check", "Dhaka")
+        if camera_file is not None:
+            # Reset state if new photo
+            if st.session_state.current_source != "camera" or st.session_state.image_file != camera_file:
+                st.session_state.image_file = camera_file
+                st.session_state.extracted_temp = None
+                st.session_state.extracted_text = ""
+                st.session_state.current_source = "camera"
 
-    if st.button("Compare with API"):
-        #Hard-coded API key
+# -------------------------------
+# OCR Extraction
+# -------------------------------
+if st.session_state.image_file is not None:
+    try:
+        image = Image.open(st.session_state.image_file).convert("RGB")
+        img_array = np.array(image)
+        st.image(image, caption="Selected Image", use_column_width=True)
+
+        gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
+        extracted_text = pytesseract.image_to_string(gray)
+        st.session_state.extracted_text = extracted_text
+
+        st.subheader("📝 Extracted Text")
+        st.text(st.session_state.extracted_text)
+
+        temp_matches = re.findall(r'(\d+)\s*(?:°|°C|degree|degrees)', st.session_state.extracted_text, flags=re.IGNORECASE)
+        if temp_matches:
+            st.session_state.extracted_temp = int(temp_matches[0])
+        else:
+            st.session_state.extracted_temp = None
+
+    except Exception as e:
+        st.error(f"Image processing failed: {e}")
+
+# -------------------------------
+# API Compare + Card View
+# -------------------------------
+city = st.text_input("Enter city name for weather check", "Dhaka")
+
+if st.button("Compare with API"):
+    if st.session_state.extracted_temp is None:
+        st.error("❌ No temperature value detected in image. Cannot compare with API.")
+    else:
         api_key = "22f9ea86b3c7d79c4a1df5b7a06da497"
-
         url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}&units=metric"
 
         try:
@@ -81,13 +119,20 @@ if uploaded_file is not None:
 
             if data.get("main"):
                 api_temp = round(data["main"]["temp"])
-                st.info(f"🌤 Current API Temperature in {city}: {api_temp}°C")
 
-                if extracted_temp is not None:
-                    if extracted_temp == api_temp:
-                        st.success("Match! Extracted temperature matches API data.")
-                    else:
-                        st.error("Not Match! Extracted temperature does not match API data.")
+                # Card-like view
+                st.markdown("### 🌤 Temperature Comparison")
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.metric(label="Extracted Temp", value=f"{st.session_state.extracted_temp}°C")
+                with col2:
+                    st.metric(label=f"{city} API Temp", value=f"{api_temp}°C")
+
+                # Match / Not Match
+                if st.session_state.extracted_temp == api_temp:
+                    st.success("✅ Match! Extracted temperature matches API data.")
+                else:
+                    st.error("❌ Not Match! Extracted temperature does not match API data.")
             else:
                 st.error("City not found or API error.")
         except Exception as e:
