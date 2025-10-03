@@ -83,7 +83,7 @@ if st.session_state.image_file is not None:
     try:
         image = Image.open(st.session_state.image_file).convert("RGB")
         img_array = np.array(image)
-        st.image(image, caption="Selected Image", use_column_width=True)
+        st.image(image, caption="Selected Image", use_container_width=True)  # ✅ Fixed here
 
         gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
         extracted_text = pytesseract.image_to_string(gray)
